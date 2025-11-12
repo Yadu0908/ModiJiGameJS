@@ -1,46 +1,45 @@
-//board
+// === FLAPPY MODI v2 ===
+// includes timer-based scoring and dynamic speed
+
 let board;
 let boardWidth = 360;
 let boardHeight = 640;
 let context;
 
-//bird
-let birdWidth = 50; // Increased size for better clarity
-let birdHeight = 82; // Maintaining 377:661 aspect ratio
+// Bird setup
+let birdWidth = 50;
+let birdHeight = 82;
 let birdX = boardWidth / 8;
 let birdY = boardHeight / 2;
 let birdImg;
 
-// Logo image
+// Logo
 let logoImg;
 
-let bird = {
-  x: birdX,
-  y: birdY,
-  width: birdWidth,
-  height: birdHeight
-};
+let bird = { x: birdX, y: birdY, width: birdWidth, height: birdHeight };
 
-//pipes
+// Pipes
 let pipeArray = [];
-let pipeWidth = 64;
-let pipeHeight = 512;
+let pipeWidth = 60;
+let pipeHeight = 382;
 let pipeX = boardWidth;
 let pipeY = 0;
 
 let topPipeImg;
 let bottomPipeImg;
 
-//physics
+// Physics
 let velocityX = -2;
 let velocityY = 0;
 let gravity = 0.4;
 
 let gameOver = false;
 let gameStarted = false;
-let score = 0;
+let score = 0; // now actual pipes passed
+let votes = 0; // time survived in seconds
+let startTime = null;
 
-//sound effects
+// Sound
 let sounds = {
   wing: new Audio("./sfx_wing.wav"),
   point: new Audio("./sfx_point.wav"),
@@ -50,7 +49,6 @@ let sounds = {
   bgm: new Audio("./saiyaraModiji.mp3")
 };
 
-// Background music settings
 sounds.bgm.loop = true;
 sounds.bgm.volume = 0.1;
 
@@ -62,18 +60,12 @@ window.onload = function () {
   board.width = boardWidth;
   context = board.getContext("2d");
 
-  // Disable smoothing for pixel art
   context.imageSmoothingEnabled = false;
-  context.mozImageSmoothingEnabled = false;
-  context.webkitImageSmoothingEnabled = false;
-  context.msImageSmoothingEnabled = false;
 
-  //load images
+  // load images
   birdImg = new Image();
   birdImg.src = "./flappybird.png";
-  birdImg.onload = function () {
-    context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
-  };
+  birdImg.onload = () => context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 
   logoImg = new Image();
   logoImg.src = "./flappyModiLogo.png";
@@ -89,116 +81,54 @@ window.onload = function () {
   document.addEventListener("click", moveBird);
   document.addEventListener("touchstart", moveBird);
 
-  // Prevent spacebar from scrolling
-  window.addEventListener("keydown", function (e) {
+  window.addEventListener("keydown", e => {
     if (e.code === "Space" || e.code === "ArrowUp") e.preventDefault();
   });
 
-  // User gesture to unlock audio on all devices
   const unlockAudio = () => {
     if (!bgmStarted) {
-      sounds.bgm.play().then(() => {
-        bgmStarted = true;
-        console.log("BGM started successfully");
-      }).catch(() => {
-        console.log("Waiting for user interaction to start audio");
-      });
+      sounds.bgm.play().then(() => (bgmStarted = true));
     }
   };
 
-  // Listen for first gesture to start music
   document.body.addEventListener("touchstart", unlockAudio, { once: true });
   document.body.addEventListener("mousedown", unlockAudio, { once: true });
   document.body.addEventListener("keydown", unlockAudio, { once: true });
 };
 
-function update() {
+function update(timestamp) {
   requestAnimationFrame(update);
   context.clearRect(0, 0, board.width, board.height);
 
-  // Show logo before start
   if (!gameStarted && !gameOver) {
-    if (logoImg.complete) {
-      let logoWidth = 280;
-      let logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-      let logoX = (boardWidth - logoWidth) / 2;
-      let logoY = boardHeight / 4 - 20;
-      context.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
-    }
-
-    let centerBirdX = (boardWidth - birdWidth) / 2;
-    let centerBirdY = boardHeight / 2 - 30;
-    context.drawImage(birdImg, centerBirdX, centerBirdY, birdWidth, birdHeight);
-
-    context.fillStyle = "white";
-    context.strokeStyle = "black";
-    context.lineWidth = 3;
-
-    context.font = "bold 28px sans-serif";
-    let startText = "Tap to Start";
-    let startWidth = context.measureText(startText).width;
-    let startX = (boardWidth - startWidth) / 2;
-    context.strokeText(startText, startX, boardHeight - 180);
-    context.fillText(startText, startX, boardHeight - 180);
-
-    context.font = "22px sans-serif";
-    let instructionText = "Tap / Space to Flap";
-    let instructionWidth = context.measureText(instructionText).width;
-    let instructionX = (boardWidth - instructionWidth) / 2;
-    context.strokeText(instructionText, instructionX, boardHeight - 140);
-    context.fillText(instructionText, instructionX, boardHeight - 140);
+    drawStartScreen();
     return;
   }
-
-  // Draw bird
-  context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 
   if (gameOver) {
-    if (logoImg.complete) {
-      let logoWidth = 280;
-      let logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-      let logoX = (boardWidth - logoWidth) / 2;
-      let logoY = 80;
-      context.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
-    }
-
-    context.fillStyle = "white";
-    context.strokeStyle = "black";
-    context.lineWidth = 3;
-    context.font = "bold 45px sans-serif";
-    let gameOverText = "GAME OVER";
-    let gameOverWidth = context.measureText(gameOverText).width;
-    let gameOverX = (boardWidth - gameOverWidth) / 2;
-    context.strokeText(gameOverText, gameOverX, boardHeight / 2 + 20);
-    context.fillText(gameOverText, gameOverX, boardHeight / 2 + 20);
-
-    context.font = "bold 35px sans-serif";
-    let finalScoreText = "Total votes: " + score;
-    let finalScoreWidth = context.measureText(finalScoreText).width;
-    let finalScoreX = (boardWidth - finalScoreWidth) / 2;
-    context.strokeText(finalScoreText, finalScoreX, boardHeight / 2 + 75);
-    context.fillText(finalScoreText, finalScoreX, boardHeight / 2 + 75);
-
-    context.font = "27px sans-serif";
-    let restartText = "Tap to Restart";
-    let restartWidth = context.measureText(restartText).width;
-    let restartX = (boardWidth - restartWidth) / 2;
-    context.strokeText(restartText, restartX, boardHeight - 150);
-    context.fillText(restartText, restartX, boardHeight - 150);
+    drawGameOverScreen();
     return;
   }
 
-  //bird
+  // time counter
+  if (!startTime) startTime = timestamp;
+  let elapsed = (timestamp - startTime) / 1000;
+  votes = Math.floor(elapsed); // time survived = votes
+
+  // gradually increase speed every 10 seconds
+  velocityX = -2 - Math.floor(elapsed / 10) * 0.5;
+
+  // bird physics
   velocityY += gravity;
   bird.y = Math.max(bird.y + velocityY, 0);
+
   if (bird.y > board.height) {
     gameOver = true;
     playSound(sounds.die);
   }
 
-  //pipes
-  for (let i = 0; i < pipeArray.length; i++) {
-    let pipe = pipeArray[i];
+  // pipes
+  for (let pipe of pipeArray) {
     pipe.x += velocityX;
     context.drawImage(pipe.img, pipe.x, pipe.y, pipe.width, pipe.height);
 
@@ -215,21 +145,95 @@ function update() {
     }
   }
 
-  //clear pipes
   while (pipeArray.length > 0 && pipeArray[0].x < -pipeWidth) {
     pipeArray.shift();
   }
 
-  //score
+  // draw bird
+  context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
+
+  // HUD (votes + score)
+  drawHUD(votes, score);
+}
+
+function drawStartScreen() {
+  if (logoImg.complete) {
+    let logoWidth = 280;
+    let logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+    let logoX = (boardWidth - logoWidth) / 2;
+    let logoY = boardHeight / 4 - 20;
+    context.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
+  }
+
+  let centerBirdX = (boardWidth - birdWidth) / 2;
+  let centerBirdY = boardHeight / 2 - 30;
+  context.drawImage(birdImg, centerBirdX, centerBirdY, birdWidth, birdHeight);
+
   context.fillStyle = "white";
-  context.font = "bold 50px sans-serif";
   context.strokeStyle = "black";
   context.lineWidth = 3;
-  let scoreText = score.toString();
-  let scoreWidth = context.measureText(scoreText).width;
-  let scoreX = (boardWidth - scoreWidth) / 2;
-  context.strokeText(scoreText, scoreX, 70);
-  context.fillText(scoreText, scoreX, 70);
+
+  context.font = "bold 28px sans-serif";
+  let startText = "Tap to Start";
+  let startWidth = context.measureText(startText).width;
+  let startX = (boardWidth - startWidth) / 2;
+  context.strokeText(startText, startX, boardHeight - 180);
+  context.fillText(startText, startX, boardHeight - 180);
+
+  context.font = "22px sans-serif";
+  let instructionText = "Tap / Space to Flap";
+  let instructionWidth = context.measureText(instructionText).width;
+  let instructionX = (boardWidth - instructionWidth) / 2;
+  context.strokeText(instructionText, instructionX, boardHeight - 140);
+  context.fillText(instructionText, instructionX, boardHeight - 140);
+}
+
+function drawGameOverScreen() {
+  if (logoImg.complete) {
+    let logoWidth = 280;
+    let logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+    let logoX = (boardWidth - logoWidth) / 2;
+    let logoY = 80;
+    context.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
+  }
+
+  context.fillStyle = "white";
+  context.strokeStyle = "black";
+  context.lineWidth = 3;
+  context.font = "bold 45px";
+  let gameOverText = "GAME OVER";
+  let gameOverWidth = context.measureText(gameOverText).width;
+  let gameOverX = (boardWidth - gameOverWidth) / 2;
+  context.strokeText(gameOverText, gameOverX, boardHeight / 2 + 20);
+  context.fillText(gameOverText, gameOverX, boardHeight / 2 + 20);
+
+  context.font = "bold 35px sans-serif";
+  let finalVotesText = `Votes: ${votes}`;
+  let finalScoreText = `Score: ${score}`;
+  context.strokeText(finalVotesText, 100, boardHeight / 2 + 80);
+  context.fillText(finalVotesText, 100, boardHeight / 2 + 80);
+  context.strokeText(finalScoreText, 100, boardHeight / 2 + 130);
+  context.fillText(finalScoreText, 100, boardHeight / 2 + 130);
+
+  context.font = "27px sans-serif";
+  let restartText = "Tap to Restart";
+  let restartWidth = context.measureText(restartText).width;
+  let restartX = (boardWidth - restartWidth) / 2;
+  context.strokeText(restartText, restartX, boardHeight - 150);
+  context.fillText(restartText, restartX, boardHeight - 150);
+}
+
+function drawHUD(votes, score) {
+  context.fillStyle = "white";
+  context.strokeStyle = "black";
+  context.lineWidth = 3;
+  context.font = "bold 28px sans-serif";
+
+  context.strokeText(`Votes: ${votes}`, 20, 40);
+  context.fillText(`Votes: ${votes}`, 20, 40);
+
+  context.strokeText(`Score: ${score}`, 20, 80);
+  context.fillText(`Score: ${score}`, 20, 80);
 }
 
 function placePipes() {
@@ -238,46 +242,29 @@ function placePipes() {
   let randomPipeY = pipeY - pipeHeight / 4 - Math.random() * (pipeHeight / 2);
   let openingSpace = board.height / 4;
 
-  let topPipe = {
-    img: topPipeImg,
-    x: pipeX,
-    y: randomPipeY,
-    width: pipeWidth,
-    height: pipeHeight,
-    passed: false
-  };
-  pipeArray.push(topPipe);
-
-  let bottomPipe = {
+  pipeArray.push({ img: topPipeImg, x: pipeX, y: randomPipeY, width: pipeWidth, height: pipeHeight, passed: false });
+  pipeArray.push({
     img: bottomPipeImg,
     x: pipeX,
     y: randomPipeY + pipeHeight + openingSpace,
     width: pipeWidth,
     height: pipeHeight,
     passed: false
-  };
-  pipeArray.push(bottomPipe);
+  });
 
   playSound(sounds.swooshing);
 }
 
 function moveBird(e) {
-  if (e.type === "keydown") {
-    if (e.code !== "Space" && e.code !== "ArrowUp" && e.code !== "KeyX") return;
-  }
-
+  if (e.type === "keydown" && !["Space", "ArrowUp", "KeyX"].includes(e.code)) return;
   if (e.type === "click" || e.type === "touchstart") e.preventDefault();
 
   if (!gameStarted && !gameOver) {
     gameStarted = true;
+    startTime = null;
+    score = 0;
+    votes = 0;
     sounds.bgm.volume = 0.5;
-    if (!bgmStarted) {
-      sounds.bgm.play().then(() => {
-        bgmStarted = true;
-      }).catch(() => {
-        console.log("User gesture required for audio");
-      });
-    }
     setInterval(placePipes, 1500);
   }
 
@@ -294,9 +281,12 @@ function moveBird(e) {
     });
     bird.y = birdY;
     pipeArray = [];
-    score = 0;
     gameOver = false;
     gameStarted = true;
+    startTime = null;
+    score = 0;
+    votes = 0;
+    velocityX = -2;
     sounds.bgm.volume = 0.5;
   }
 }
