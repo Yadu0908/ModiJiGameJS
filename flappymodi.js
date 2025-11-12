@@ -37,7 +37,7 @@ let velocityY = 0;
 let gravity = 0.4;
 
 let gameOver = false;
-let gameStarted = false; // New variable to track if game has started
+let gameStarted = false;
 let score = 0;
 
 //sound effects
@@ -50,11 +50,10 @@ let sounds = {
   bgm: new Audio("./saiyaraModiji.mp3")
 };
 
-// Set background music to loop
+// Background music settings
 sounds.bgm.loop = true;
-sounds.bgm.volume = 0.1; // 10% volume for menu screen
+sounds.bgm.volume = 0.1;
 
-// Track if BGM has started
 let bgmStarted = false;
 
 window.onload = function () {
@@ -63,7 +62,7 @@ window.onload = function () {
   board.width = boardWidth;
   context = board.getContext("2d");
 
-  // Disable image smoothing for crisp pixel art
+  // Disable smoothing for pixel art
   context.imageSmoothingEnabled = false;
   context.mozImageSmoothingEnabled = false;
   context.webkitImageSmoothingEnabled = false;
@@ -90,34 +89,35 @@ window.onload = function () {
   document.addEventListener("click", moveBird);
   document.addEventListener("touchstart", moveBird);
 
-  // Prevent spacebar from scrolling the page
+  // Prevent spacebar from scrolling
   window.addEventListener("keydown", function (e) {
-    if (e.code === "Space" || e.code === "ArrowUp") {
-      e.preventDefault();
-    }
+    if (e.code === "Space" || e.code === "ArrowUp") e.preventDefault();
   });
 
-  // Start background music immediately when page loads
-  document.addEventListener("click", startBGM, { once: true });
-  document.addEventListener("keydown", startBGM, { once: true });
-  document.addEventListener("touchstart", startBGM, { once: true });
-};
+  // User gesture to unlock audio on all devices
+  const unlockAudio = () => {
+    if (!bgmStarted) {
+      sounds.bgm.play().then(() => {
+        bgmStarted = true;
+        console.log("BGM started successfully");
+      }).catch(() => {
+        console.log("Waiting for user interaction to start audio");
+      });
+    }
+  };
 
-function startBGM() {
-  if (!bgmStarted) {
-    sounds.bgm.currentTime = 0;
-    sounds.bgm.play().catch(e => console.log("Audio autoplay prevented"));
-    bgmStarted = true;
-  }
-}
+  // Listen for first gesture to start music
+  document.body.addEventListener("touchstart", unlockAudio, { once: true });
+  document.body.addEventListener("mousedown", unlockAudio, { once: true });
+  document.body.addEventListener("keydown", unlockAudio, { once: true });
+};
 
 function update() {
   requestAnimationFrame(update);
   context.clearRect(0, 0, board.width, board.height);
 
-  // Show logo and start message if game hasn't started
+  // Show logo before start
   if (!gameStarted && !gameOver) {
-    // Draw logo in center-top
     if (logoImg.complete) {
       let logoWidth = 280;
       let logoHeight = (logoImg.height / logoImg.width) * logoWidth;
@@ -126,25 +126,23 @@ function update() {
       context.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
     }
 
-    // Draw bird in center
     let centerBirdX = (boardWidth - birdWidth) / 2;
     let centerBirdY = boardHeight / 2 - 30;
     context.drawImage(birdImg, centerBirdX, centerBirdY, birdWidth, birdHeight);
 
-    // Draw start instructions with outline
     context.fillStyle = "white";
     context.strokeStyle = "black";
     context.lineWidth = 3;
 
     context.font = "bold 28px sans-serif";
-    let startText = "Click to Start";
+    let startText = "Tap to Start";
     let startWidth = context.measureText(startText).width;
     let startX = (boardWidth - startWidth) / 2;
     context.strokeText(startText, startX, boardHeight - 180);
     context.fillText(startText, startX, boardHeight - 180);
 
     context.font = "22px sans-serif";
-    let instructionText = "Space/Click to Flap";
+    let instructionText = "Tap / Space to Flap";
     let instructionWidth = context.measureText(instructionText).width;
     let instructionX = (boardWidth - instructionWidth) / 2;
     context.strokeText(instructionText, instructionX, boardHeight - 140);
@@ -152,11 +150,10 @@ function update() {
     return;
   }
 
-  // Draw bird always (during gameplay)
+  // Draw bird
   context.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 
   if (gameOver) {
-    // Draw logo at top
     if (logoImg.complete) {
       let logoWidth = 280;
       let logoHeight = (logoImg.height / logoImg.width) * logoWidth;
@@ -165,7 +162,6 @@ function update() {
       context.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
     }
 
-    // Game Over text with outline
     context.fillStyle = "white";
     context.strokeStyle = "black";
     context.lineWidth = 3;
@@ -176,7 +172,6 @@ function update() {
     context.strokeText(gameOverText, gameOverX, boardHeight / 2 + 20);
     context.fillText(gameOverText, gameOverX, boardHeight / 2 + 20);
 
-    // Final Score in center with outline
     context.font = "bold 35px sans-serif";
     let finalScoreText = "Total votes: " + score;
     let finalScoreWidth = context.measureText(finalScoreText).width;
@@ -184,9 +179,8 @@ function update() {
     context.strokeText(finalScoreText, finalScoreX, boardHeight / 2 + 75);
     context.fillText(finalScoreText, finalScoreX, boardHeight / 2 + 75);
 
-    // Restart text with outline
     context.font = "27px sans-serif";
-    let restartText = "Click to Restart";
+    let restartText = "Tap to Restart";
     let restartWidth = context.measureText(restartText).width;
     let restartX = (boardWidth - restartWidth) / 2;
     context.strokeText(restartText, restartX, boardHeight - 150);
@@ -197,7 +191,6 @@ function update() {
   //bird
   velocityY += gravity;
   bird.y = Math.max(bird.y + velocityY, 0);
-
   if (bird.y > board.height) {
     gameOver = true;
     playSound(sounds.die);
@@ -212,10 +205,7 @@ function update() {
     if (!pipe.passed && bird.x > pipe.x + pipe.width) {
       score += 0.5;
       pipe.passed = true;
-      if (score % 1 === 0) {
-        playSound(sounds.point);
-        sounds.point.volume = 1.5;
-      }
+      if (score % 1 === 0) playSound(sounds.point);
     }
 
     if (detectCollision(bird, pipe)) {
@@ -230,24 +220,20 @@ function update() {
     pipeArray.shift();
   }
 
-  //score - moved down a bit with outline
+  //score
   context.fillStyle = "white";
   context.font = "bold 50px sans-serif";
   context.strokeStyle = "black";
   context.lineWidth = 3;
-
   let scoreText = score.toString();
   let scoreWidth = context.measureText(scoreText).width;
   let scoreX = (boardWidth - scoreWidth) / 2;
-
   context.strokeText(scoreText, scoreX, 70);
   context.fillText(scoreText, scoreX, 70);
 }
 
 function placePipes() {
-  if (gameOver || !gameStarted) {
-    return;
-  }
+  if (gameOver || !gameStarted) return;
 
   let randomPipeY = pipeY - pipeHeight / 4 - Math.random() * (pipeHeight / 2);
   let openingSpace = board.height / 4;
@@ -276,44 +262,36 @@ function placePipes() {
 }
 
 function moveBird(e) {
-  // Handle keyboard events
   if (e.type === "keydown") {
-    if (e.code !== "Space" && e.code !== "ArrowUp" && e.code !== "KeyX") {
-      return;
-    }
+    if (e.code !== "Space" && e.code !== "ArrowUp" && e.code !== "KeyX") return;
   }
 
-  // Prevent default behavior for touch/click
-  if (e.type === "click" || e.type === "touchstart") {
-    e.preventDefault();
-  }
+  if (e.type === "click" || e.type === "touchstart") e.preventDefault();
 
-  // Start the game on first interaction
   if (!gameStarted && !gameOver) {
     gameStarted = true;
     sounds.bgm.volume = 0.5;
     if (!bgmStarted) {
-      sounds.bgm.play().catch(e => console.log("Audio autoplay prevented"));
-      bgmStarted = true;
+      sounds.bgm.play().then(() => {
+        bgmStarted = true;
+      }).catch(() => {
+        console.log("User gesture required for audio");
+      });
     }
     setInterval(placePipes, 1500);
   }
 
-  //jump
   velocityY = -6;
   sounds.wing.volume = 0.7;
   playSound(sounds.wing);
 
-  //reset game
   if (gameOver) {
-    // stop all non-looping sounds (like die, hit, wing, etc.)
     Object.values(sounds).forEach(s => {
       if (!s.loop) {
         s.pause();
         s.currentTime = 0;
       }
     });
-
     bird.y = birdY;
     pipeArray = [];
     score = 0;
@@ -325,7 +303,6 @@ function moveBird(e) {
 
 function detectCollision(a, b) {
   let padding = 8;
-
   return (
     a.x + padding < b.x + b.width &&
     a.x + a.width - padding > b.x &&
@@ -336,5 +313,5 @@ function detectCollision(a, b) {
 
 function playSound(sound) {
   sound.currentTime = 0;
-  sound.play().catch(e => console.log("Audio play failed"));
+  sound.play().catch(() => {});
 }
